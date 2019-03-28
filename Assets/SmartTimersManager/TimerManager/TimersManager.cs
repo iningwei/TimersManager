@@ -5,6 +5,21 @@ using System.Collections.Generic;
 
 namespace Timers
 {
+
+    [System.Serializable]
+    public class TimersEntity
+    {
+        public long id;
+        public string nickName;
+        public WeakReference wr;
+
+        public TimersEntity(long id, string nickName, WeakReference wr)
+        {
+            this.id = id;
+            this.nickName = nickName;
+            this.wr = wr;
+        }
+    }
     // The TimerManager manages all scheduled timers. This includes both the regular execution of timers, as well as the cleanup of timers after garbage collection.
     [DisallowMultipleComponent]
     public class TimersManager : MonoBehaviour
@@ -13,11 +28,16 @@ namespace Timers
         private static TimersManager m_instance = null;
 
         // A map of weak references. When an object is garbage collected, all its timers are automatically removed.
-        private static IDictionary<WeakReference, Timer> m_Timers = new Dictionary<WeakReference, Timer>();
+        private static IDictionary<TimersEntity, Timer> m_Timers = new Dictionary<TimersEntity, Timer>();
 
         // Whether the game is paused
         private static bool m_bPaused = false;
 
+#if UNITY_EDITOR
+        float duration = 1f;
+        float lastRefreshTime = 0;
+        public List<TimersEntity> timersList = new List<TimersEntity>();
+#endif
         void Awake()
         {
             if (m_instance != null)
@@ -33,9 +53,9 @@ namespace Timers
             m_instance = this;
         }
 
-        private static void FindAndRemove(UnityAction UnityAction)
+        private static void findAndRemove(UnityAction UnityAction)
         {
-            foreach (KeyValuePair<WeakReference, Timer> elem in m_Timers)
+            foreach (KeyValuePair<TimersEntity, Timer> elem in m_Timers)
             {
                 if (elem.Value.Delegate() == UnityAction)
                 {
@@ -45,21 +65,42 @@ namespace Timers
             }
         }
 
+        static void findAndRemove(long id)
+        {
+            foreach (KeyValuePair<TimersEntity, Timer> item in m_Timers)
+            {
+                if (item.Key.id == id)
+                {
+                    m_Timers.Remove(item.Key);
+                    break;
+                }
+            }
+        }
+
         private void Update()
         {
+#if UNITY_EDITOR
+            if (Time.time - lastRefreshTime > duration)
+            {
+                lastRefreshTime = Time.time;
+                timersList.Clear();
+                timersList = new List<TimersEntity>(m_Timers.Keys);
+            }
+#endif
+
             if (m_bPaused)
                 return;
 
-            List<WeakReference> Keys = new List<WeakReference>(m_Timers.Keys);
-            foreach (WeakReference key in Keys)
+            List<TimersEntity> Keys = new List<TimersEntity>(m_Timers.Keys);
+            foreach (TimersEntity key in Keys)
             {
                 Timer timer = null;
                 if (m_Timers.TryGetValue(key, out timer))
                 {
-                    if (key.Target != null && !key.Target.Equals(null))
+                    if (key.wr.Target != null && !key.wr.Target.Equals(null))
                         timer.UpdateTimer();
 
-                    if (key.Target == null || key.Target.Equals(null) || timer == null || timer.ShouldClear())
+                    if (key.wr.Target == null || key.wr.Target.Equals(null) || timer == null || timer.ShouldClear())
                         m_Timers.Remove(key);
                 }
             }
@@ -70,19 +111,21 @@ namespace Timers
             m_bPaused = pauseStatus;
         }
 
-
         /// <summary>
         /// Set timer
         /// </summary>
         /// <param name="Owner">The object that contains the timer. Required in order to remove the timer if the object is destroyed.</param>
         /// <param name="timer">Timer to add</param>
-        public static void SetTimer(object Owner, Timer timer)
+        public static long SetTimer(object Owner, Timer timer, string nickName = "")
         {
+            long id = 0;
             if (timer.Delegate() != null && timer.Interval() > 0f && Owner != null && timer.LoopsCount() > 0)
             {
+                id = IdAssginer.GetID(IdAssginer.IdType.Times);
                 ClearTimer(timer.Delegate());
-                m_Timers.Add(new WeakReference(Owner), timer);
+                m_Timers.Add(new TimersEntity(id, nickName, new WeakReference(Owner)), timer);
             }
+            return id;
         }
 
         /// <summary>
@@ -92,14 +135,17 @@ namespace Timers
         /// <param name="interval">Interval(in seconds) between loops</param>
         /// <param name="LoopsCount">How many times to loop</param>
         /// <param name="UnityAction">Delegate</param>
-        public static void SetTimer(object Owner, float interval, uint LoopsCount, UnityAction unityAction)
+        public static long SetTimer(object Owner, float interval, uint LoopsCount, UnityAction unityAction, string nickName = "")
         {
+            long id = 0;
             LoopsCount = System.Math.Max(LoopsCount, 1);
             if (unityAction != null && interval > 0f && Owner != null && LoopsCount > 0)
             {
+                id = IdAssginer.GetID(IdAssginer.IdType.Times);
                 ClearTimer(unityAction);
-                m_Timers.Add(new WeakReference(Owner), new Timer(interval, LoopsCount, unityAction));
+                m_Timers.Add(new TimersEntity(id, nickName, new WeakReference(Owner)), new Timer(interval, LoopsCount, unityAction));
             }
+            return id;
         }
 
         /// <summary>
@@ -108,13 +154,17 @@ namespace Timers
         /// <param name="Owner">The object that contains the timer. Required in order to remove the timer if the object is destroyed.</param>
         /// <param name="interval">Interval(in seconds) between loops</param>
         /// <param name="UnityAction">Delegate</param>
-        public static void SetTimer(object Owner, float interval, UnityAction unityAction)
+        public static long SetTimer(object Owner, float interval, UnityAction unityAction, string nickName = "")
         {
+            long id = 0;
             if (unityAction != null && interval > 0f && Owner != null)
             {
+                id = IdAssginer.GetID(IdAssginer.IdType.Times);
                 ClearTimer(unityAction);
-                m_Timers.Add(new WeakReference(Owner), new Timer(interval, 1, unityAction));
+                m_Timers.Add(new TimersEntity(id, nickName, new WeakReference(Owner)), new Timer(interval, 1, unityAction));
             }
+
+            return id;
         }
 
         /// <summary>
@@ -123,13 +173,17 @@ namespace Timers
         /// <param name="Owner">The object that contains the timer. Required in order to remove the timer if the object is destroyed.</param>
         /// <param name="interval">Interval(in seconds)</param>
         /// <param name="unityAction">Delegate</param>
-        public static void SetLoopableTimer(object Owner, float interval, UnityAction unityAction)
+        public static long SetLoopableTimer(object Owner, float interval, UnityAction unityAction, string nickName = "")
         {
+            long id = 0;
             if (unityAction != null && interval > 0f && Owner != null)
             {
+                id = IdAssginer.GetID(IdAssginer.IdType.Times);
                 ClearTimer(unityAction);
-                m_Timers.Add(new WeakReference(Owner), new Timer(interval, Timer.INFINITE, unityAction));
+                m_Timers.Add(new TimersEntity(id, nickName, new WeakReference(Owner)), new Timer(interval, Timer.INFINITE, unityAction));
             }
+
+            return id;
         }
 
         /// <summary>
@@ -137,14 +191,15 @@ namespace Timers
         /// </summary>
         /// <param name="Owner">Owner of timers. This should be the object that have these timers. Required in order to remove the timers if the object is destroyed.</param>
         /// <param name="Timers">Timers list</param>
-        public static void AddTimers(object Owner, List<Timer> Timers)
+        public static long[] AddTimers(object Owner, List<Timer> Timers)
         {
+            List<long> ids = new List<long>();
             if (Owner == null)
             {
 #if UNITY_EDITOR
                 Debug.LogWarning("Owner is null. Aborted.");
 #endif
-                return;
+                return null;
             }
 
             foreach (Timer timer in Timers)
@@ -152,9 +207,12 @@ namespace Timers
                 if (timer.Interval() > 0f && Owner != null && timer.LoopsCount() > 0)
                 {
                     timer.UpdateActionFromEvent();
-                    m_Timers.Add(new WeakReference(Owner), timer);
+                    long id = IdAssginer.GetID(IdAssginer.IdType.Times);
+                    m_Timers.Add(new TimersEntity(id, "", new WeakReference(Owner)), timer);
+                    ids.Add(id);
                 }
             }
+            return ids.ToArray();
         }
 
         /// <summary>
@@ -164,7 +222,13 @@ namespace Timers
         public static void ClearTimer(UnityAction UnityAction)
         {
             if (UnityAction != null)
-                FindAndRemove(UnityAction);
+                findAndRemove(UnityAction);
+        }
+
+
+        public static void ClearTimer(long id)
+        {
+            findAndRemove(id);
         }
 
         /// <summary>
@@ -173,7 +237,7 @@ namespace Timers
         /// <param name="UnityAction">Delegate name</param>
         public static Timer GetTimerByName(UnityAction UnityAction)
         {
-            foreach (KeyValuePair<WeakReference, Timer> elem in m_Timers)
+            foreach (KeyValuePair<TimersEntity, Timer> elem in m_Timers)
                 if (elem.Value.Delegate() == UnityAction)
                     return elem.Value;
 
