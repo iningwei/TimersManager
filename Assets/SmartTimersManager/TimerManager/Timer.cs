@@ -1,4 +1,5 @@
-﻿using UnityEngine;using UnityEngine.Events;using System.Runtime.CompilerServices;[assembly: InternalsVisibleToAttribute("TimersManager")]namespace Timers {    [System.Serializable]    public class Timer    {        public const uint INFINITE = uint.MaxValue;
+﻿using UnityEngine;using UnityEngine.Events;using System.Runtime.CompilerServices;[assembly: InternalsVisibleToAttribute("TimersManager")]namespace Timers
+{    [System.Serializable]    public class Timer    {        public const uint INFINITE = uint.MaxValue;
 
         [SerializeField]
         private float m_Interval = 0;        [SerializeField]
@@ -90,22 +91,24 @@
 
         /// <summary>
         /// Pause / Inpause timer
-        /// </summary>        public void SetPaused(bool bPause) { m_bIsPaused = bPause; }        
-        
+        /// </summary>        public void SetPaused(bool bPause) { m_bIsPaused = bPause; }
+
+
+
 
         /// <summary>
         ///     Compare frequency (calls per second)
         /// </summary>
-        public static bool operator >(Timer A, Timer B)     { return (A == null || B == null) ? true : A.Interval() < B.Interval(); }
+        public static bool operator >(Timer A, Timer B) { return (A == null || B == null) ? true : A.Interval() < B.Interval(); }
 
         /// <summary>
         ///     Compare frequency (calls per second)
-        /// </summary>        public static bool operator <(Timer A, Timer B)     { return (A == null || B == null) ? true : A.Interval() > B.Interval(); }
+        /// </summary>        public static bool operator <(Timer A, Timer B) { return (A == null || B == null) ? true : A.Interval() > B.Interval(); }
 
         /// <summary>
         ///     Compare frequency (calls per second)
-        /// </summary>        public static bool operator >=(Timer A, Timer B)    { return (A == null || B == null) ? true : A.Interval() <= B.Interval(); }
+        /// </summary>        public static bool operator >=(Timer A, Timer B) { return (A == null || B == null) ? true : A.Interval() <= B.Interval(); }
 
         /// <summary>
         ///     Compare frequency (calls per second)
-        /// </summary>        public static bool operator <=(Timer A, Timer B)    { return (A == null || B == null) ? true : A.Interval() >= B.Interval(); }    }}
+        /// </summary>        public static bool operator <=(Timer A, Timer B) { return (A == null || B == null) ? true : A.Interval() >= B.Interval(); }    }}

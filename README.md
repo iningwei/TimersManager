@@ -1,5 +1,6 @@
 This is an extention of unity free asset [SmartTimersManager](https://assetstore.unity.com/packages/tools/integration/smart-timers-manager-55023).
 
+Use Unity2019.4.0f1/Android
 **Extentions:**
 
 1. Each timer has an unique id.
